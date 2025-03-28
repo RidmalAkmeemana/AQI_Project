@@ -81,7 +81,7 @@
 
                 $.ajax({
                     type: 'POST',
-                    url: 'http://localhost:7023/api/auth/login', // Ensure API is running
+                    url: 'https://localhost:7023/api/auth/login', // Ensure API is running
                     contentType: 'application/json',
                     dataType: 'json',
                     data: JSON.stringify(formData),
