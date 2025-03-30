@@ -58,17 +58,28 @@
 
     <!-- Custom JS -->
     <script>
+
+        // Check if token exists and redirect if already logged in
+        window.onload = function () {
+            var token = localStorage.getItem('token');
+            if (token) {
+                // Token exists, redirect to home page
+                window.location.href = 'home.php';
+            }
+        };
+
         $(document).ready(function () {
             $('#login-form').submit(function (event) {
-                event.preventDefault();
-                $('#error-message').html('');  // Clear previous errors
+                event.preventDefault(); // Prevent form submission
+
+                $('#error-message').html(''); // Clear any previous errors
 
                 var email = $('#email').val().trim();
                 var password = $('#password').val().trim();
 
                 // Validate inputs
                 if (email === "" || password === "") {
-                    $('#error-message').html("<center><label class='text-danger'>Username & Password are required</label></center>");
+                    $('#error-message').html("<center><label class='text-danger'>Email & Password are required</label></center>");
                     return;
                 }
 
@@ -85,13 +96,16 @@
                     contentType: 'application/json',
                     dataType: 'json',
                     data: JSON.stringify(formData),
+
                     success: function (response) {
                         console.log("API Response:", response); // Debugging log
 
                         if (response.token) {
+                            // Valid token received, store it and redirect
                             localStorage.setItem('token', response.token);
                             window.location.href = 'home.php'; // Redirect to home page
                         } else {
+                            // Invalid response, show error message
                             $('#error-message').html("<center><label class='text-danger'>Invalid Username or Password</label></center>");
                         }
                     },
