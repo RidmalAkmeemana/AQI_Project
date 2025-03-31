@@ -263,11 +263,16 @@ $lng = $_REQUEST["lng"];
 
                         // Function to initialize the Google Map
                         var map;
+                        var infoWindow;  // Declare infoWindow globally to update its content
+                        var marker;  // Declare marker globally to update its content
                         function initMap(lat, lng) {
                             map = new google.maps.Map(document.getElementById("map"), {
                                 zoom: 10,
                                 center: { lat: lat, lng: lng }
                             });
+
+                            // Initialize the info window (set once when map is loaded)
+                            infoWindow = new google.maps.InfoWindow();
                         }
 
                         // Function to fetch AQI Data and populate table, as well as pin on the map
@@ -326,15 +331,18 @@ $lng = $_REQUEST["lng"];
                                         table.draw();
 
                                         // Add a marker to the map based on latitude and longitude
-                                        var marker = new google.maps.Marker({
-                                            position: { lat: lat, lng: lng },
-                                            map: map,
-                                        });
+                                        if (!marker) {  // Only create a new marker if one doesn't exist
+                                            marker = new google.maps.Marker({
+                                                position: { lat: lat, lng: lng },
+                                                map: map,
+                                            });
+                                        }
 
                                         // Change marker color based on AQI
                                         var latestAQI = data[0].aqiValue;
                                         var markerColor;
                                         var aqiLevelText;
+                                        var badgeClass;
 
                                         if (latestAQI <= 50) {
                                             markerColor = 'green';
@@ -361,15 +369,28 @@ $lng = $_REQUEST["lng"];
                                         // Set the pin color dynamically
                                         marker.setIcon(`http://maps.google.com/mapfiles/ms/icons/${markerColor}-dot.png`);
 
-                                        // Add event listener to show city name, AQI level and timestamp on click
+                                        // Update the content of the info window dynamically
                                         google.maps.event.addListener(marker, 'click', function () {
-                                            var infoWindow = new google.maps.InfoWindow({
-                                                content: `<h5 class="text-uppercase"><span class="${badgeClass}">${latestAQI}</span> ${city}</h5>
-                                                <p><strong>AQI Level:</strong> <span class="${badgeClass}"> ${aqiLevelText}</span></p>
-                                                <p><strong>Date:</strong> ${data[0].readingTime}</p>`
-                                            });
+
+                                            let timestamp = data[0].readingTime.split('.')[0];
+
+                                            var infoContent = `<h5 class="text-uppercase"><span class="${badgeClass}">${latestAQI}</span> ${city}</h5>
+                                            <p><strong>AQI Level:</strong> <span class="${badgeClass}"> ${aqiLevelText}</span></p>
+                                            <p><strong>${timestamp}</strong></p>`;
+                                            infoWindow.setContent(infoContent);
                                             infoWindow.open(map, marker);
                                         });
+
+                                        // If marker already exists, update the info window without adding a new marker
+                                        if (infoWindow) {
+
+                                            let timestamp = data[0].readingTime.split('.')[0];
+
+                                            var infoContent = `<h5 class="text-uppercase"><span class="${badgeClass}">${latestAQI}</span> ${city}</h5>
+                                            <p><strong>AQI Level:</strong> <span class="${badgeClass}"> ${aqiLevelText}</span></p>
+                                            <p><strong>${timestamp}</strong></p>`;
+                                            infoWindow.setContent(infoContent);
+                                        }
 
                                     } else {
                                         console.warn("No AQI data available for this sensor.");
@@ -444,18 +465,18 @@ $lng = $_REQUEST["lng"];
                                 .catch(error => console.error("Error fetching AQI data:", error));
                         }
 
-                        // Set an interval to refresh the AQI and table every 2 seconds (2000ms)
-                        setInterval(() => {
-                            fetchAQIData();
-                            updateAQI();
-                        }, 1000); // Update every 2 seconds
-
                         // Initialize Google Map (use your own Google Maps API key)
                         function loadMap() {
                             const cityLat = parseFloat("<?php echo $_REQUEST['lat']; ?>");
                             const cityLng = parseFloat("<?php echo $_REQUEST['lng']; ?>");
                             initMap(cityLat, cityLng);
                         }
+
+                        // Set an interval to refresh the AQI and table every 1 seconds (1000ms)
+                        setInterval(() => {
+                            fetchAQIData();
+                            updateAQI();
+                        }, 1000); // Update every 1 seconds
 
                         // Ensure the map is loaded after DOM is ready
                         window.onload = function () {
@@ -467,6 +488,7 @@ $lng = $_REQUEST["lng"];
                             checkTokenAndRedirect();
                         };
                     </script>
+
 
                     <!-- Google Maps API -->
                     <script

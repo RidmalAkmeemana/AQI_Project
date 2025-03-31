@@ -229,201 +229,200 @@
                 <script src="assets/js/script.js"></script>
 
                 <script>
-    // Global map variable to keep reference to the map instance
-    var map;
-    var markers = []; // Array to store markers
+                    // Global map variable to keep reference to the map instance
+                    var map;
+                    var markers = {}; // Object to store markers by location ID
+                    var infoWindows = {}; // Object to store InfoWindows by location ID
 
-    // Function to check token and show the modal if necessary
-    function checkTokenAndRedirect() {
-        var token = localStorage.getItem('token');
-        if (token) {
-            console.log("Token found:", token);
+                    // Function to check token and show the modal if necessary
+                    function checkTokenAndRedirect() {
+                        var token = localStorage.getItem('token');
+                        if (token) {
+                            console.log("Token found:", token);
 
-            // Fetch the list of users from the API
-            fetch('https://localhost:7023/api/user', {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Bearer ' + token, // Pass the token as Authorization header
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())  // Parse the response to JSON
-            .then(data => {
-                console.log("API Response:", data);  // Log the API response
-                // Count the number of users by checking the length of the response array
-                const userCount = data.length;
-                console.log("Number of users: ", userCount);
-                // Update the HTML with the number of users
-                document.getElementById('userCount').innerText = userCount;
-            })
-            .catch(error => {
-                console.error('Error fetching users:', error);
-            });
+                            // Fetch the list of users from the API
+                            fetch('https://localhost:7023/api/user', {
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': 'Bearer ' + token,
+                                    'Content-Type': 'application/json'
+                                }
+                            })
+                                .then(response => response.json())
+                                .then(data => {
+                                    console.log("API Response:", data);
+                                    document.getElementById('userCount').innerText = data.length;
+                                })
+                                .catch(error => {
+                                    console.error('Error fetching users:', error);
+                                });
 
-            // Fetch the list of locations and update location counts
-            fetch('https://localhost:7023/api/sensors/all', {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log("Location API Response:", data);
-                const locationCount = data.length;
-                console.log("Number of locations:", locationCount);
-                document.getElementById('locationCount').innerText = locationCount;
+                            // Fetch the list of locations and update location counts
+                            fetch('https://localhost:7023/api/sensors/all', {
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': 'Bearer ' + token,
+                                    'Content-Type': 'application/json'
+                                }
+                            })
+                                .then(response => response.json())
+                                .then(data => {
+                                    console.log("Location API Response:", data);
+                                    document.getElementById('locationCount').innerText = data.length;
 
-                // Filter active locations and update active and inactive sensor counts
-                const activeLocations = data.filter(location => location.isActive === true).length;
-                console.log("Active Locations Count:", activeLocations);
-                document.getElementById('activeSensors').innerText = activeLocations;
+                                    const activeLocations = data.filter(location => location.isActive);
+                                    document.getElementById('activeSensors').innerText = activeLocations.length;
+                                    document.getElementById('inactiveSensors').innerText = data.length - activeLocations.length;
+                                })
+                                .catch(error => {
+                                    console.error('Error fetching locations:', error);
+                                });
 
-                const inactiveLocations = data.filter(location => location.isActive === false).length;
-                console.log("Inactive Locations Count:", inactiveLocations);
-                document.getElementById('inactiveSensors').innerText = inactiveLocations;
-
-            })
-            .catch(error => {
-                console.error('Error fetching locations:', error);
-            });
-
-        } else {
-            console.log("Token not found in local storage.");
-            // Show the session timeout modal
-            $('#SessionTimeOut').modal('show');
-
-            // After the "OK" button is clicked, redirect to login page
-            $('#OkBtn1').click(function () {
-                window.location.href = 'index.php'; // Redirect to login page
-            });
-        }
-    }
-
-    // Function to initialize the map and place markers
-    function initMap() {
-        var token = localStorage.getItem('token');
-        if (token) {
-            // Fetch the list of locations from the API
-            fetch('https://localhost:7023/api/sensors/all', {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log("Location API Response:", data);
-                const activeLocations = data.filter(location => location.isActive === true);
-
-                // Map initialization if not already done
-                if (!map) {
-                    map = new google.maps.Map(document.getElementById('map'), {
-                        center: { lat: 6.9271, lng: 79.8612 }, // Center on Sri Lanka
-                        zoom: 10
-                    });
-                }
-
-                // Remove existing markers
-                markers.forEach(marker => marker.setMap(null));
-                markers = []; // Clear the markers array
-
-                // Add a marker for each active location
-                activeLocations.forEach(location => {
-                    // Call the AQI readings for each active location
-                    fetch(`https://localhost:7023/api/aqireadings/sensor/${location.id}`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': 'Bearer ' + token,
-                            'Content-Type': 'application/json'
+                        } else {
+                            console.log("Token not found in local storage.");
+                            $('#SessionTimeOut').modal('show');
+                            $('#OkBtn1').click(function () {
+                                window.location.href = 'index.php';
+                            });
                         }
-                    })
-                    .then(response => response.json())
-                    .then(aqiData => {
-                        console.log("AQI Data:", aqiData);
-                        // Get the latest AQI value
-                        const latestAQI = aqiData.length > 0 ? aqiData[0].aqiValue : 0;
-                        let color = 'green'; // Default color for good AQI
+                    }
 
-                        // Change color based on AQI value
-                        if (latestAQI <= 50) {
-                            color = 'green'; // Good
-                            aqiLevelText = "Good";
-                            badgeClass = "badge badge-primary";
-                        } else if (latestAQI <= 100) {
-                            color = 'blue'; // Moderate
-                            aqiLevelText = "Moderate";
-                            badgeClass = "badge badge-info";
-                        } else if (latestAQI <= 150) {
-                            color = 'orange'; // Unhealthy for Sensitive Groups
-                            aqiLevelText = "Unhealthy for Sensitive Groups";
-                            badgeClass = "badge badge-warning";
-                        }
-                        else if (latestAQI <= 200) {
-                            color = 'red'; // Unhealthy
-                            aqiLevelText = "Unhealthy";
-                            aqiLevelText = "Very Unhealthy";
-                            badgeClass = "badge badge-danger";
-                        }
-                        else {
-                            color = 'purple'; // Very Unhealthy
-                            badgeClass = "badge badge-dark";
-                        }
+                    // Function to initialize the map and place markers
+                    function initMap() {
+                        var token = localStorage.getItem('token');
+                        if (token) {
+                            fetch('https://localhost:7023/api/sensors/all', {
+                                method: 'GET',
+                                headers: {
+                                    'Authorization': 'Bearer ' + token,
+                                    'Content-Type': 'application/json'
+                                }
+                            })
+                                .then(response => response.json())
+                                .then(data => {
+                                    console.log("Location API Response:", data);
+                                    const activeLocations = data.filter(location => location.isActive);
 
-                        // Create a marker with a color based on AQI level
-                        const marker = new google.maps.Marker({
-                            position: { lat: location.latitude, lng: location.longitude },
-                            map: map,
-                            title: location.city,
-                            icon: {
-                                path: google.maps.SymbolPath.CIRCLE,
-                                scale: 8,
-                                fillColor: color,
-                                fillOpacity: 0.8,
-                                strokeColor: 'white',
-                                strokeWeight: 2
+                                    if (!map) {
+                                        map = new google.maps.Map(document.getElementById('map'), {
+                                            center: { lat: 6.9271, lng: 79.8612 },
+                                            zoom: 10
+                                        });
+                                    }
+
+                                    activeLocations.forEach(location => {
+                                        updateMarker(location, token);
+                                    });
+                                })
+                                .catch(error => {
+                                    console.error('Error fetching locations:', error);
+                                });
+                        }
+                    }
+
+                    // Function to update marker and info window dynamically
+                    function updateMarker(location, token) {
+                        fetch(`https://localhost:7023/api/aqireadings/sensor/${location.id}`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': 'Bearer ' + token,
+                                'Content-Type': 'application/json'
                             }
-                        });
+                        })
+                            .then(response => response.json())
+                            .then(aqiData => {
+                                console.log("AQI Data:", aqiData);
+                                const latestAQI = aqiData.length > 0 ? aqiData[0].aqiValue : 0;
+                                let color = 'green';
+                                let aqiLevelText = "Good";
+                                let badgeClass = "badge badge-primary";
 
-                        // Add an info window with AQI level and city name
-                        const infoWindow = new google.maps.InfoWindow({
-                            content: `<h5 class="text-uppercase"><span class="${badgeClass}">${latestAQI}</span> ${location.city}</h5>
-                            <p><strong>AQI Level:</strong> <span class="${badgeClass}"> ${aqiLevelText}</span></p>
-                                                <a href="viewlocation.php?id=${location.id}&city=${location.city}&lat=${location.latitude}&lng=${location.longitude}" style="color:black;"><strong>More Information</strong></a>`
-                        });
+                                if (latestAQI > 50 && latestAQI <= 100) {
+                                    color = 'blue';
+                                    aqiLevelText = "Moderate";
+                                    badgeClass = "badge badge-info";
+                                } else if (latestAQI > 100 && latestAQI <= 150) {
+                                    color = 'orange';
+                                    aqiLevelText = "Unhealthy for Sensitive Groups";
+                                    badgeClass = "badge badge-warning";
+                                } else if (latestAQI > 150 && latestAQI <= 200) {
+                                    color = 'red';
+                                    aqiLevelText = "Unhealthy";
+                                    badgeClass = "badge badge-danger";
+                                } else if (latestAQI > 200) {
+                                    color = 'purple';
+                                    aqiLevelText = "Very Unhealthy";
+                                    badgeClass = "badge badge-dark";
+                                }
 
-                        marker.addListener('click', function () {
-                            infoWindow.open(map, marker);
-                        });
+                                if (markers[location.id]) {
+                                    // Update marker color dynamically
+                                    markers[location.id].setIcon({
+                                        path: google.maps.SymbolPath.CIRCLE,
+                                        scale: 8,
+                                        fillColor: color,
+                                        fillOpacity: 0.8,
+                                        strokeColor: 'white',
+                                        strokeWeight: 2
+                                    });
 
-                        // Store the marker in the markers array
-                        markers.push(marker);
-                    })
-                    .catch(error => {
-                        console.error('Error fetching AQI data:', error);
-                    });
-                });
-            })
-            .catch(error => {
-                console.error('Error fetching locations:', error);
-            });
-        }
-    }
+                                    // Update InfoWindow content dynamically
+                                    infoWindows[location.id].setContent(`
+                <h5 class="text-uppercase"><span class="${badgeClass}">${latestAQI}</span> ${location.city}</h5>
+                <p><strong>AQI Level:</strong> <span class="${badgeClass}"> ${aqiLevelText}</span></p>
+                <a href="viewlocation.php?id=${location.id}&city=${location.city}&lat=${location.latitude}&lng=${location.longitude}" class="btn btn-outline-secondary btn-sm mt-2"><strong>MORE INFOMATION</strong></a>
+            `);
+                                } else {
+                                    // Create a new marker if it doesn't exist
+                                    const marker = new google.maps.Marker({
+                                        position: { lat: location.latitude, lng: location.longitude },
+                                        map: map,
+                                        title: location.city,
+                                        icon: {
+                                            path: google.maps.SymbolPath.CIRCLE,
+                                            scale: 8,
+                                            fillColor: color,
+                                            fillOpacity: 0.8,
+                                            strokeColor: 'white',
+                                            strokeWeight: 2
+                                        }
+                                    });
 
-    // Call the function on window load
-    window.onload = function () {
-        checkTokenAndRedirect();
-        initMap(); // Initialize the map initially
-        setInterval(initMap, 10000); // Refresh the location pings (markers and AQI data) every 10 seconds
-    };
+                                    // Create a new InfoWindow
+                                    const infoWindow = new google.maps.InfoWindow({
+                                        content: `
+                                        <h5 class="text-uppercase"><span class="${badgeClass}">${latestAQI}</span> ${location.city}</h5>
+                                        <p><strong>AQI Level:</strong> <span class="${badgeClass}"> ${aqiLevelText}</span></p>
+                                        <a href="viewlocation.php?id=${location.id}&city=${location.city}&lat=${location.latitude}&lng=${location.longitude}" style="color:black;"><strong>More Information</strong></a>`
+                                    });
 
-    // Optionally, you can trigger the same function when clicking anywhere on the window
-    window.onclick = function () {
-        checkTokenAndRedirect();
-    };
-</script>
+                                    marker.addListener('click', function () {
+                                        infoWindow.open(map, marker);
+                                    });
+
+                                    // Store the marker and InfoWindow in the global objects
+                                    markers[location.id] = marker;
+                                    infoWindows[location.id] = infoWindow;
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error fetching AQI data:', error);
+                            });
+                    }
+
+                    // Call the function on window load
+                    window.onload = function () {
+                        checkTokenAndRedirect();
+                        initMap();
+                        setInterval(initMap, 1000); // Refresh AQI data every 1 seconds without recreating markers
+                    };
+
+                    // Optionally, trigger the same function when clicking anywhere on the window
+                    window.onclick = function () {
+                        checkTokenAndRedirect();
+                    };
+
+                </script>
 
 
                 <script
